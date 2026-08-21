@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ledger — Stock Journal & Investment Platform</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0B0F14;
+      --panel: #121820;
+      --panel-2: #171F29;
+      --border: #212B36;
+      --text: #E8EDF2;
+      --muted: #7C8A99;
+      --green: #22C55E;
+      --green-dim: #163823;
+      --red: #EF4444;
+      --red-dim: #3A1A1A;
+      --gold: #D4A73C;
+      --gold-dim: #2B2413;
+      --orange: #F97316;
+      --orange-dim: #3C200C;
+      --radius: 10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* Topbar */
+    .topbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 26px; background: rgba(11,15,20,0.9); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand .mark { width: 28px; height: 28px; border-radius: 6px; background: var(--gold); display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk'; font-weight: 700; color: #0B0F14; }
+    .brand span { font-family: 'Space Grotesk'; font-weight: 600; font-size: 18px; }
+    .nav { display: flex; gap: 12px; align-items: center; }
+    .nav-btn { color: var(--muted); cursor: pointer; font-weight: 500; font-size: 14px; padding: 6px 12px; border-radius: 6px; border: none; background: transparent; }
+    .nav-btn:hover, .nav-btn.active { color: var(--gold); background: var(--panel-2); }
+    .logout-btn { color: var(--red); text-decoration: none; font-size: 13px; font-weight: 600; margin-left: 15px; }
+
+    /* Content Area */
+    .wrap { max-width: 1000px; margin: 0 auto; padding: 26px; }
+    .balance-row { display: flex; gap: 16px; margin-bottom: 26px; }
+    .stat-card { flex: 1; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+    .stat-card .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px; }
+    .stat-card .val { font-family: 'JetBrains Mono'; font-size: 24px; font-weight: 700; color: var(--gold); }
+
+    .sec-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; margin-top: 24px; }
+    .sec-head h2 { font-family: 'Space Grotesk'; font-size: 18px; }
+
+    /* Calendar Styling */
+    .cal-container { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 30px; }
+    .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .cal-month-nav { display: flex; align-items: center; gap: 12px; }
+    .cal-month-nav button { background: var(--panel-2); border: 1px solid var(--border); color: var(--text); width: 32px; height: 32px; border-radius: 6px; cursor: pointer; font-size: 16px; }
+    .cal-month-nav button:hover { border-color: var(--gold); color: var(--gold); }
+    .cal-month-title { font-family: 'JetBrains Mono'; font-weight: 700; font-size: 15px; }
+
+    .cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 8px; text-align: center; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+
+    .cal-cell {
+      aspect-ratio: 1 / 0.85;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.15s;
+    }
+    /* Normal day: Orange */
+    .cal-cell.normal { background: var(--orange-dim); border-color: var(--orange); }
+    .cal-cell.normal .pnl { color: var(--orange); }
+
+    /* Loss day: Red */
+    .cal-cell.loss { background: var(--red-dim); border-color: var(--red); }
+    .cal-cell.loss .pnl { color: var(--red); }
+
+    /* Profit day: Green */
+    .cal-cell.profit { background: var(--green-dim); border-color: var(--green); }
+    .cal-cell.profit .pnl { color: var(--green); }
+
+    .cal-cell.empty { background: transparent; border: none; }
+    .cal-cell .daynum { font-size: 12px; color: var(--text); font-family: 'JetBrains Mono'; font-weight: 600; }
+    .cal-cell .pnl { font-family: 'JetBrains Mono'; font-size: 12px; font-weight: 700; }
+
+    .cal-legend { display: flex; gap: 16px; margin-top: 14px; font-size: 12px; color: var(--muted); }
+    .legend-item { display: flex; align-items: center; gap: 6px; }
+    .legend-box { width: 12px; height: 12px; border-radius: 3px; }
+    .legend-box.normal { background: var(--orange); }
+    .legend-box.profit { background: var(--green); }
+    .legend-box.loss { background: var(--red); }
+
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 30px; }
+    th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; }
+    th { background: var(--panel-2); color: var(--muted); text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+    .green { color: var(--green); font-weight: bold; }
+    .red { color: var(--red); font-weight: bold; }
+
+    .btn-action { background: var(--gold); color: #14100a; border: none; padding: 8px 14px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px; }
+    .btn-action:hover { filter: brightness(1.1); }
+    .btn-del { background: var(--red); color: #fff; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 100; }
+    .modal { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; width: 100%; max-width: 400px; }
+    .modal h3 { font-family: 'Space Grotesk'; margin-bottom: 14px; }
+    .modal input, .modal select { width: 100%; margin-bottom: 12px; padding: 10px; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 6px; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand"><div class="mark">L</div><span>Ledger</span></div>
+    <div class="nav">
+      <button class="nav-btn active" onclick="showTab('calendar')">P&amp;L Calendar</button>
+      <button class="nav-btn" onclick="showTab('investments')">Stock Investments</button>
+      <button class="nav-btn" onclick="showTab('journal')">Trading Journal</button>
+      <button class="nav-btn" onclick="showTab('challenges')">Challenges</button>
+      <span style="color: var(--muted); font-size: 13px;">{{ user.email }}</span>
+      <a href="/logout" class="logout-btn">Log out</a>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <!-- Header Stats -->
+    <div class="balance-row">
+      <div class="stat-card">
+        <div class="label">Total Portfolio Value</div>
+        <div class="val mono" id="stat-portfolio">₹0.00</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Cash Capital</div>
+        <div class="val mono" id="stat-cash" style="color: var(--text);">₹0.00</div>
+        <button class="btn-action" style="margin-top: 8px; padding: 4px 10px; font-size: 11px;" onclick="openCapitalModal()">Set Capital</button>
+      </div>
+    </div>
+
+    <!-- TAB 1: Calendar View -->
+    <div id="tab-calendar">
+      <div class="sec-head">
+        <h2>Trading P&amp;L Calendar</h2>
+        <button class="btn-action" onclick="openJournalModal()">+ Log Trade Entry</button>
+      </div>
+      
+      <div class="cal-container">
+        <div class="cal-header">
+          <div class="cal-month-title" id="cal-month-title"></div>
+          <div class="cal-month-nav">
+            <button onclick="changeMonth(-1)">‹</button>
+            <button onclick="changeMonth(1)">›</button>
+          </div>
+        </div>
+        <div class="cal-weekdays">
+          <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+        <div class="cal-legend">
+          <div class="legend-item"><div class="legend-box normal"></div><span>Normal Trading Day (Orange)</span></div>
+          <div class="legend-item"><div class="legend-box profit"></div><span>Profit Day (Green)</span></div>
+          <div class="legend-item"><div class="legend-box loss"></div><span>Loss Day (Red)</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: Stock Investments -->
+    <div id="tab-investments" class="hidden">
+      <div class="sec-head">
+        <h2>Stock Portfolio</h2>
+        <div>
+          <button class="btn-action" onclick="openStockModal()">+ Add Stock Investment</button>
+          <button class="btn-action" style="background: var(--panel-2); color: var(--text); border: 1px solid var(--border);" onclick="fetchLiveQuotes()">🔄 Refresh Quotes</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th>Shares</th>
+            <th>Buy Price</th>
+            <th>Current Price</th>
+            <th>Market Value</th>
+            <th>Unrealized P&L</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="stock-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- TAB 3: Journal -->
+    <div id="tab-journal" class="hidden">
+      <div class="sec-head">
+        <h2>Trade Log Journal</h2>
+        <button class="btn-action" onclick="openJournalModal()">+ Log Trade Entry</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Symbol</th>
+            <th>Type</th>
+            <th>Price</th>
+            <th>Shares</th>
+            <th>Realized P&L</th>
+            <th>Notes</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="journal-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- TAB 4: Challenges -->
+    <div id="tab-challenges" class="hidden">
+      <div class="sec-head">
+        <h2>Capital Growth Challenges</h2>
+        <button class="btn-action" onclick="openChallengeModal()">+ Add Challenge</button>
+      </div>
+      <div id="challenges-list"></div>
+    </div>
+  </div>
+
+  <!-- Modals -->
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal" id="modal-content"></div>
+  </div>
+
+  <script>
+    let state = { balance: 0, investments: [], journal: [], challenges: [] };
+    let liveQuotes = {};
+    let calYear = new Date().getFullYear();
+    let calMonth = new Date().getMonth();
+
+    async function loadData() {
+      try {
+        const r = await fetch('/api/user_data');
+        const data = await r.json();
+        if (data && !data.error) {
+          state.balance = parseFloat(data.balance) || 0;
+          state.investments = data.investments || [];
+          state.journal = data.journal || [];
+          state.challenges = data.challenges || [];
+        }
+      } catch (err) {
+        console.error('Failed to load user data:', err);
+      }
+      render();
+      fetchLiveQuotes();
+    }
+
+    async function saveData() {
+      try {
+        await fetch('/api/save_user_data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(state)
+        });
+      } catch (err) {
+        console.error('Failed to save user data:', err);
+      }
+      render();
+    }
+
+    async function fetchLiveQuotes() {
+      const symbols = [...new Set(state.investments.map(i => i.symbol.toUpperCase()))];
+      if (!symbols.length) return;
+      try {
+        const r = await fetch('/api/stock_quotes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ symbols })
+        });
+        const quotes = await r.json();
+        if (quotes && !quotes.error) {
+          liveQuotes = quotes;
+          render();
+        }
+      } catch (e) {
+        console.error('Failed to fetch live quotes:', e);
+      }
+    }
+
+    function render() {
+      document.getElementById('stat-cash').textContent = '₹' + state.balance.toFixed(2);
+      let totalMkt = state.balance;
+
+      // Render Calendar
+      renderCalendar();
+
+      // Render Stocks
+      const stockTb = document.getElementById('stock-tbody');
+      stockTb.innerHTML = state.investments.map((inv, idx) => {
+        const q = liveQuotes[inv.symbol.toUpperCase()] || { price: inv.buyPrice, change: 0 };
+        const price = q.price || inv.buyPrice;
+        const mktVal = inv.shares * price;
+        const pnl = (price - inv.buyPrice) * inv.shares;
+        totalMkt += mktVal;
+
+        return `<tr>
+          <td><b>${inv.symbol.toUpperCase()}</b></td>
+          <td>${inv.shares}</td>
+          <td>₹${parseFloat(inv.buyPrice).toFixed(2)}</td>
+          <td>₹${parseFloat(price).toFixed(2)}</td>
+          <td>₹${mktVal.toFixed(2)}</td>
+          <td class="${pnl>=0?'green':'red'}">${pnl>=0?'+':''}₹${pnl.toFixed(2)}</td>
+          <td>
+            <button class="btn-action" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;" onclick="openStockModal(${idx})">Edit</button>
+            <button class="btn-del" onclick="deleteStock(${idx})">Delete</button>
+          </td>
+        </tr>`;
+      }).join('');
+
+      document.getElementById('stat-portfolio').textContent = '₹' + totalMkt.toFixed(2);
+
+      // Render Journal
+      const journalTb = document.getElementById('journal-tbody');
+      journalTb.innerHTML = state.journal.map((j, idx) => `<tr>
+        <td>${j.date}</td>
+        <td><b>${j.symbol.toUpperCase()}</b></td>
+        <td>${j.type}</td>
+        <td>₹${parseFloat(j.price).toFixed(2)}</td>
+        <td>${j.shares}</td>
+        <td class="${j.pnl>=0?'green':'red'}">${j.pnl>=0?'+':''}₹${parseFloat(j.pnl).toFixed(2)}</td>
+        <td>${j.note || ''}</td>
+        <td><button class="btn-del" onclick="deleteJournal(${idx})">Delete</button></td>
+      </tr>`).join('');
+
+      // Render Challenges
+      const chDiv = document.getElementById('challenges-list');
+      chDiv.innerHTML = state.challenges.map(c => {
+        const pct = Math.min(100, Math.max(0, ((state.balance - c.startCapital) / (c.targetCapital - c.startCapital)) * 100));
+        return `<div style="background:var(--panel); border:1px solid var(--border); padding:16px; border-radius:10px; margin-bottom:12px;">
+          <h3>Target: ₹${c.targetCapital}</h3>
+          <p style="color:var(--muted); font-size:13px; margin-top:4px;">Progress: ${pct.toFixed(1)}% (₹${state.balance.toFixed(2)} / ₹${c.targetCapital})</p>
+        </div>`;
+      }).join('');
+    }
+
+    function renderCalendar() {
+      const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+      document.getElementById('cal-month-title').textContent = monthNames[calMonth] + " " + calYear;
+
+      const firstDay = new Date(calYear, calMonth, 1).getDay();
+      const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+      const grid = document.getElementById('cal-grid');
+
+      let html = '';
+      for (let i = 0; i < firstDay; i++) {
+        html += '<div class="cal-cell empty"></div>';
+      }
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const dayTrades = state.journal.filter(j => j.date === dateStr);
+        const dayPnl = dayTrades.reduce((sum, j) => sum + (parseFloat(j.pnl) || 0), 0);
+
+        let cellClass = 'normal'; // Default Orange for normal trading days
+        let pnlText = '';
+
+        if (dayTrades.length > 0) {
+          if (dayPnl > 0) {
+            cellClass = 'profit'; // Green for profit
+            pnlText = '+₹' + dayPnl.toFixed(2);
+          } else if (dayPnl < 0) {
+            cellClass = 'loss'; // Red for loss
+            pnlText = '-₹' + Math.abs(dayPnl).toFixed(2);
+          }
+        }
+
+        html += `<div class="cal-cell ${cellClass}">
+          <div class="daynum">${d}</div>
+          <div class="pnl">${pnlText}</div>
+        </div>`;
+      }
+      grid.innerHTML = html;
+    }
+
+    function changeMonth(dir) {
+      calMonth += dir;
+      if (calMonth < 0) { calMonth = 11; calYear--; }
+      if (calMonth > 11) { calMonth = 0; calYear++; }
+      renderCalendar();
+    }
+
+    function showTab(name) {
+      ['calendar', 'investments', 'journal', 'challenges'].forEach(t => {
+        document.getElementById('tab-' + t).classList.add('hidden');
+      });
+      document.getElementById('tab-' + name).classList.remove('hidden');
+
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+    }
+
+    function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
+
+    function openCapitalModal() {
+      const modal = document.getElementById('modal-content');
+      modal.innerHTML = `<h3>Set Cash Capital</h3>
+        <input type="number" step="0.01" id="m-cap" value="${state.balance}">
+        <div class="modal-actions">
+          <button class="btn-action" onclick="saveCapital()">Save</button>
+          <button class="btn-action" style="background:transparent; border:1px solid var(--border); color:var(--text);" onclick="closeModal()">Cancel</button>
+        </div>`;
+      document.getElementById('modal-overlay').classList.remove('hidden');
+    }
+
+    function saveCapital() {
+      state.balance = parseFloat(document.getElementById('m-cap').value) || 0;
+      closeModal();
+      saveData();
+    }
+
+    function openStockModal(editIdx = null) {
+      const modal = document.getElementById('modal-content');
+      const inv = editIdx !== null ? state.investments[editIdx] : null;
+
+      const titleText = inv ? 'Edit Stock Investment' : 'Add Stock Investment';
+      const symVal = inv ? inv.symbol : '';
+      const sharesVal = inv ? inv.shares : '';
+      const priceVal = inv ? inv.buyPrice : '';
+      const statusVal = inv ? (inv.status || 'holding') : 'holding';
+      const manualPnlVal = inv && inv.manualPnl ? Math.abs(inv.manualPnl) : '';
+
+      modal.innerHTML = `<h3>${titleText}</h3>
+        <input type="hidden" id="m-edit-idx" value="${editIdx !== null ? editIdx : ''}">
+
+        <label style="display:block; font-size:11px; color:var(--muted); margin-bottom:4px; text-transform:uppercase;">Stock Symbol</label>
+        <input type="text" id="m-sym" placeholder="Symbol (e.g. AAPL, NVDA)" value="${symVal}">
+        
+        <label style="display:block; font-size:11px; color:var(--muted); margin-bottom:4px; text-transform:uppercase;">Number of Shares</label>
+        <input type="number" step="any" id="m-shares" placeholder="e.g. 10" value="${sharesVal}">
+        
+        <label style="display:block; font-size:11px; color:var(--muted); margin-bottom:4px; text-transform:uppercase;">Buy Price (₹)</label>
+        <input type="number" step="any" id="m-price" placeholder="e.g. 150.00" value="${priceVal}">
+
+        <label style="display:block; font-size:11px; color:var(--muted); margin-bottom:4px; text-transform:uppercase;">Trade Status / Result</label>
+        <select id="m-status" onchange="togglePnlInput()">
+          <option value="holding" ${statusVal==='holding'?'selected':''}>Holding (Active Stock Investment)</option>
+          <option value="profit" ${statusVal==='profit'?'selected':''}>Closed Trade — Profit 🟢</option>
+          <option value="loss" ${statusVal==='loss'?'selected':''}>Closed Trade — Loss 🔴</option>
+        </select>
+
+        <div id="pnl-amount-box" class="${statusVal==='holding'?'hidden':''}">
+          <label style="display:block; font-size:11px; color:var(--muted); margin-bottom:4px; text-transform:uppercase;" id="pnl-amount-label">
+            ${statusVal==='loss'?'Loss Amount (₹)':'Profit Amount (₹)'}
+          </label>
+          <input type="number" step="any" id="m-pnl-amount" placeholder="0.00" value="${manualPnlVal}">
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn-action" onclick="saveStock()">${inv ? 'Update Investment' : 'Add Investment'}</button>
+          <button class="btn-action" style="background:transparent; border:1px solid var(--border); color:var(--text);" onclick="closeModal()">Cancel</button>
+        </div>`;
+      document.getElementById('modal-overlay').classList.remove('hidden');
+    }
+
+    function togglePnlInput() {
+      const status = document.getElementById('m-status').value;
+      const box = document.getElementById('pnl-amount-box');
+      const label = document.getElementById('pnl-amount-label');
+      if (status === 'holding') {
+        box.classList.add('hidden');
+      } else {
+        box.classList.remove('hidden');
+        label.textContent = status === 'profit' ? 'Profit Amount (₹)' : 'Loss Amount (₹)';
+      }
+    }
+
+    function saveStock() {
+      const editIdxStr = document.getElementById('m-edit-idx').value;
+      const editIdx = editIdxStr !== '' ? parseInt(editIdxStr, 10) : null;
+
+      const sym = document.getElementById('m-sym').value.trim();
+      const shares = parseFloat(document.getElementById('m-shares').value);
+      const buyPrice = parseFloat(document.getElementById('m-price').value);
+      const status = document.getElementById('m-status').value;
+
+      if (!sym || !shares || !buyPrice) return alert('Please enter symbol, shares, and buy price.');
+
+      let pnlVal = 0;
+      if (status === 'profit' || status === 'loss') {
+        const rawPnl = parseFloat(document.getElementById('m-pnl-amount').value);
+        if (isNaN(rawPnl) || rawPnl < 0) return alert('Please enter a valid non-negative amount for the profit/loss.');
+        pnlVal = status === 'profit' ? rawPnl : -rawPnl;
+
+        // If editing an existing item, remove its previous manual PnL impact from balance
+        if (editIdx !== null && state.investments[editIdx].manualPnl) {
+          state.balance -= state.investments[editIdx].manualPnl;
+        }
+
+        // Auto-log or update into Trade Journal & update balance
+        state.journal.push({
+          date: new Date().toISOString().split('T')[0],
+          symbol: sym.toUpperCase(),
+          type: status === 'profit' ? 'SELL (PROFIT)' : 'SELL (LOSS)',
+          price: buyPrice,
+          shares: shares,
+          pnl: pnlVal,
+          note: `Stock investment result: ${status === 'profit' ? '+' : ''}₹${pnlVal.toFixed(2)}`
+        });
+        state.balance += pnlVal;
+      }
+
+      const newInv = { symbol: sym, shares, buyPrice, status, manualPnl: pnlVal };
+
+      if (editIdx !== null) {
+        state.investments[editIdx] = newInv;
+      } else {
+        state.investments.push(newInv);
+      }
+
+      closeModal();
+      saveData();
+      fetchLiveQuotes();
+    }
+
+    function deleteStock(idx) {
+      state.investments.splice(idx, 1);
+      saveData();
+    }
+
+    function openJournalModal() {
+      const modal = document.getElementById('modal-content');
+      modal.innerHTML = `<h3>Log Trade Entry</h3>
+        <input type="date" id="j-date" value="${new Date().toISOString().split('T')[0]}">
+        <input type="text" id="j-sym" placeholder="Symbol (e.g. NVDA)">
+        <select id="j-type"><option value="BUY">BUY</option><option value="SELL">SELL</option></select>
+        <input type="number" step="any" id="j-price" placeholder="Price (₹)">
+        <input type="number" step="any" id="j-shares" placeholder="Shares">
+        <input type="number" step="any" id="j-pnl" placeholder="Realized P&L (₹)">
+        <input type="text" id="j-note" placeholder="Notes">
+        <div class="modal-actions">
+          <button class="btn-action" onclick="saveJournal()">Save Entry</button>
+          <button class="btn-action" style="background:transparent; border:1px solid var(--border); color:var(--text);" onclick="closeModal()">Cancel</button>
+        </div>`;
+      document.getElementById('modal-overlay').classList.remove('hidden');
+    }
+
+    function saveJournal() {
+      const date = document.getElementById('j-date').value || new Date().toISOString().split('T')[0];
+      const symbol = document.getElementById('j-sym').value.trim();
+      const type = document.getElementById('j-type').value;
+      const price = parseFloat(document.getElementById('j-price').value) || 0;
+      const shares = parseFloat(document.getElementById('j-shares').value) || 0;
+      const pnl = parseFloat(document.getElementById('j-pnl').value) || 0;
+      const note = document.getElementById('j-note').value;
+      state.journal.push({ date, symbol, type, price, shares, pnl, note });
+      state.balance += pnl;
+      closeModal();
+      saveData();
+    }
+
+    function deleteJournal(idx) {
+      state.balance -= state.journal[idx].pnl;
+      state.journal.splice(idx, 1);
+      saveData();
+    }
+
+    function openChallengeModal() {
+      const modal = document.getElementById('modal-content');
+      modal.innerHTML = `<h3>Add Challenge</h3>
+        <input type="number" step="any" id="c-tgt" placeholder="Target Capital (₹)">
+        <div class="modal-actions">
+          <button class="btn-action" onclick="saveChallenge()">Add Challenge</button>
+          <button class="btn-action" style="background:transparent; border:1px solid var(--border); color:var(--text);" onclick="closeModal()">Cancel</button>
+        </div>`;
+      document.getElementById('modal-overlay').classList.remove('hidden');
+    }
+
+    function saveChallenge() {
+      const targetCapital = parseFloat(document.getElementById('c-tgt').value) || 0;
+      state.challenges.push({ startCapital: state.balance, targetCapital });
+      closeModal();
+      saveData();
+    }
+
+    loadData();
+  </script>
+</body>
+</html>
